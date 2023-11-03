@@ -38,6 +38,10 @@ func Serve(setups OrgSetup) {
 	http.HandleFunc("/comment/feed", setups.GetCommentFeed)
 	http.HandleFunc("/delete", setups.DeletePost)
 	http.HandleFunc("/appeal", setups.AppealPost)
+	http.HandleFunc("/hide", setups.HidePostModerator)
+	http.HandleFunc("/moderator", setups.SelectModerator)
+	http.HandleFunc("/show", setups.ShowPostModerator)
+	http.HandleFunc("/unappeal", setups.UnAppealPost)
 	fmt.Println("Listening (http://localhost:3000/)...")
 	if err := http.ListenAndServe(":3000", nil); err != nil {
 		fmt.Println(err)

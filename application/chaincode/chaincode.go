@@ -148,7 +148,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Author:    "1",
 		Score:     10,
 		CreatedAt: ctime,
-		Comments:  make([]string, 0),
+		Comments:  []string{"c_1"},
 		Hidden:    false,
 		Community: "co_1",
 		HideCount: 0,
@@ -170,6 +170,32 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		ShowCount: 0,
 	}
 
+	comment1 := Comment{
+		ID:        "c_1",
+		Content:   "comment of p_1",
+		Author:    "1",
+		Score:     0,
+		CreatedAt: ctime,
+		Parent:    "p_1",
+		Replies:   []string{"c_2"},
+		Hidden:    false,
+		Community: "co_1",
+		HideCount: 0,
+		ShowCount: 0,
+	}
+	comment2 := Comment{
+		ID:        "c_2",
+		Content:   "comment of c_1",
+		Author:    "1",
+		Score:     0,
+		CreatedAt: ctime,
+		Parent:    "c_1",
+		Replies:   make([]string, 0),
+		Hidden:    false,
+		Community: "co_1",
+		HideCount: 0,
+		ShowCount: 0,
+	}
 	user1JSON, err := json.Marshal(user1)
 	if err != nil {
 		return err
@@ -211,6 +237,23 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		return err
 	}
 	err = ctx.GetStub().PutState(post2.ID, post2Json)
+	if err != nil {
+		return err
+	}
+	comment1Json, err := json.Marshal(comment1)
+	if err != nil {
+		return err
+	}
+	err = ctx.GetStub().PutState(comment1.ID, comment1Json)
+	if err != nil {
+		return err
+	}
+
+	comment2Json, err := json.Marshal(comment2)
+	if err != nil {
+		return err
+	}
+	err = ctx.GetStub().PutState(comment2.ID, comment2Json)
 	if err != nil {
 		return err
 	}

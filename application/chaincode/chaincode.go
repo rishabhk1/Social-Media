@@ -21,7 +21,15 @@ type User struct {
 	Email       string   `json:"email"`
 	Communities []string `json:"communities"`
 	Posts       []string `json:"posts"` //list of ids
+	Comments    []string `json:"comments"`
 	Reputation  int
+}
+
+type UserModified struct {
+	ID         string `json:"id"`
+	Username   string `json:"username"`
+	Email      string `json:"email"`
+	Reputation int    `json:"reputation"`
 }
 
 type Community struct {
@@ -36,6 +44,16 @@ type Community struct {
 	Appealed    []string
 }
 
+type CommunityModified struct {
+	ID          string         `json:"id"`
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	Creator     string         `json:"creator"`
+	CreatedAt   time.Time      `json:"createdAt"`
+	Moderators  []UserModified `json:"moderators"`
+	Users       []UserModified `json:"users"`
+}
+
 type Post struct {
 	ID        string    `json:"id"` // should start with p
 	Title     string    `json:"title"`
@@ -48,6 +66,26 @@ type Post struct {
 	Community string
 	HideCount int
 	ShowCount int
+	UpVote    []string
+	DownVote  []string
+}
+
+type PostModified struct {
+	ID            string    `json:"id"` // should start with p
+	Title         string    `json:"title"`
+	Content       string    `json:"content"`
+	Author        string    `json:"author"`
+	Score         int       `json:"score"`
+	CreatedAt     time.Time `json:"createdAt"`
+	Comments      []string  `json:"comments"` //list of ids
+	Hidden        bool      `json:"hidden"`
+	Community     string    `json:"community"`
+	HideCount     int       `json:"hideCount"`
+	ShowCount     int       `json:"showCount"`
+	AuthorName    string    `json:"authorName"`
+	CommunityName string    `json:"communityName"`
+	HasUpvoted    bool      `json:"hasUpvoted"`
+	HasDownvoted  bool      `json:"hasDownvoted"`
 }
 
 type Comment struct {
@@ -62,6 +100,26 @@ type Comment struct {
 	Community string
 	HideCount int
 	ShowCount int
+	UpVote    []string
+	DownVote  []string
+}
+
+type CommentModified struct {
+	ID            string    `json:"id"` //should syart with c
+	Content       string    `json:"content"`
+	Author        string    `json:"author"`
+	Score         int       `json:"score"`
+	CreatedAt     time.Time `json:"createdAt"`
+	Parent        string    `json:"parentId"`
+	Replies       []string  `json:"replies"` //list of ids
+	Hidden        bool      `json:"hidden"`
+	Community     string    `json:"community"`
+	HideCount     int       `json:"hideCount"`
+	ShowCount     int       `json:"showCount"`
+	AuthorName    string    `json:"authorName"`
+	CommunityName string    `json:"communityName"`
+	HasUpvoted    bool      `json:"hasUpvoted"`
+	HasDownvoted  bool      `json:"hasDownvoted"`
 }
 
 const PostsPerPage = 20
@@ -116,6 +174,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Communities: []string{"co_1"},
 		Posts:       []string{"p_1"},
 		Reputation:  10,
+		Comments:    []string{"c_1", "c_2"},
 	}
 
 	user2 := User{
@@ -124,6 +183,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Email:       "joe_rog@example.com",
 		Communities: []string{"co_1"},
 		Posts:       []string{"p_2"},
+		Comments:    make([]string, 0),
 		Reputation:  11,
 	}
 
@@ -137,7 +197,7 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Moderators:  []string{"1"},
 		Posts:       []string{"p_1", "p_2"},
 		Users:       []string{"1", "2"},
-		Appealed:    make([]string, 0),
+		Appealed:    []string{"p_2"},
 	}
 
 	ctime, _ = time.Parse(layout, "2023-04-17T15:04:05.000Z")
@@ -153,6 +213,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Community: "co_1",
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
 
 	ctime, _ = time.Parse(layout, "2023-07-17T15:04:05.000Z")
@@ -168,6 +230,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Community: "co_1",
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
 
 	comment1 := Comment{
@@ -182,6 +246,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Community: "co_1",
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
 	comment2 := Comment{
 		ID:        "c_2",
@@ -195,6 +261,8 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Community: "co_1",
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
 	user1JSON, err := json.Marshal(user1)
 	if err != nil {
@@ -276,6 +344,7 @@ func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, 
 		Communities: make([]string, 0),
 		Posts:       make([]string, 0),
 		Reputation:  0,
+		Comments:    make([]string, 0),
 	}
 	userJson, _ := json.Marshal(user)
 	return ctx.GetStub().PutState(UserId, userJson)
@@ -301,6 +370,49 @@ func (s *SmartContract) GetUser(ctx contractapi.TransactionContextInterface, use
 		return nil, err
 	}
 	return &user, nil
+}
+func (s *SmartContract) GetUserModified(ctx contractapi.TransactionContextInterface, userId string) (*UserModified, error) {
+	userJson, err := ctx.GetStub().GetState(userId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read user from ledger: %w", err)
+	}
+	if userJson == nil {
+		return nil, nil
+	}
+
+	var user User
+	err = json.Unmarshal(userJson, &user)
+	if err != nil {
+		return nil, err
+	}
+	var userModified *UserModified
+	userModified, err = s.convertToUserModified(ctx, &user)
+	if err != nil {
+		return nil, err
+	}
+	return userModified, nil
+}
+
+func (s *SmartContract) GetCommunityModified(ctx contractapi.TransactionContextInterface, communityId string) (*CommunityModified, error) {
+	communityJson, err := ctx.GetStub().GetState(communityId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
+	}
+	if communityJson == nil {
+		return nil, nil
+	}
+
+	var community Community
+	err = json.Unmarshal(communityJson, &community)
+	if err != nil {
+		return nil, err
+	}
+	var communityModified *CommunityModified
+	communityModified, err = s.convertToCommunityModified(ctx, &community)
+	if err != nil {
+		return nil, err
+	}
+	return communityModified, nil
 }
 
 /*
@@ -438,6 +550,8 @@ func (s *SmartContract) CreatePost(ctx contractapi.TransactionContextInterface, 
 		Community: communityId,
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
 	existingCommunity.Posts = append(existingCommunity.Posts, id)
 	existingUser.Posts = append(existingUser.Posts, id)
@@ -471,51 +585,143 @@ func (s *SmartContract) GetPost(ctx contractapi.TransactionContextInterface, id 
 	return &post, nil
 }
 
+func (s *SmartContract) GetPostModified(ctx contractapi.TransactionContextInterface, postId string, userId string) (*PostModified, error) {
+	postJson, err := ctx.GetStub().GetState(postId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read post from ledger: %w", err)
+	}
+	if postJson == nil {
+		return nil, nil
+	}
+
+	var post Post
+	err = json.Unmarshal(postJson, &post)
+	if err != nil {
+		return nil, err
+	}
+	var postModified *PostModified
+	postModified, err = s.convertToPostModified(ctx, &post, userId)
+	if err != nil {
+		return nil, err
+	}
+	return postModified, nil
+}
+
 /*
 Allows users to upvote a post or comment. It takes post or comment Id and user Id as parameters.
 When a user upvotes a post or comment, it increases the item's score.
 The function also manages the reputation system by incrementing the author's reputation score if the user is not the author.
 */
-func (s *SmartContract) UpVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) error {
+func (s *SmartContract) UpVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) (bool, error) {
 	var author string
+	var upVotedDiff = 0
 	if postId[0] == 'p' {
 		existingPost, err := s.GetPost(ctx, postId)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if existingPost == nil {
-			return fmt.Errorf("Post with ID %s doesn't exists", postId)
+			return false, fmt.Errorf("Post with ID %s doesn't exists", postId)
 		}
-		existingPost.Score += 1
+		if !contains(existingPost.UpVote, userId) {
+			existingPost.Score += 1
+			upVotedDiff += 1
+			existingPost.UpVote = append(existingPost.UpVote, userId)
+			if contains(existingPost.DownVote, userId) {
+				existingPost.DownVote = removeElement(existingPost.DownVote, findIndex(existingPost.DownVote, userId))
+				existingPost.Score += 1
+				upVotedDiff += 1
+			}
+		}
 		postJson, _ := json.Marshal(existingPost)
 		author = existingPost.Author
 		ctx.GetStub().PutState(postId, postJson)
 	} else {
 		existingComment, err := s.GetComment(ctx, postId)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if existingComment == nil {
-			return fmt.Errorf("Comment with ID %s doesn't exists", postId)
+			return false, fmt.Errorf("Comment with ID %s doesn't exists", postId)
 		}
-		existingComment.Score += 1
+		if !contains(existingComment.UpVote, userId) {
+			existingComment.Score += 1
+			upVotedDiff += 1
+			existingComment.UpVote = append(existingComment.UpVote, userId)
+			if contains(existingComment.DownVote, userId) {
+				existingComment.DownVote = removeElement(existingComment.DownVote, findIndex(existingComment.DownVote, userId))
+				existingComment.Score += 1
+				upVotedDiff += 1
+			}
+		}
 		commentJson, _ := json.Marshal(existingComment)
 		author = existingComment.Author
 		ctx.GetStub().PutState(postId, commentJson)
 	}
 	existingUser, err := s.GetUser(ctx, author)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if existingUser == nil {
-		return fmt.Errorf("User with ID %s doesn't exists", userId)
+		return false, fmt.Errorf("User with ID %s doesn't exists", userId)
 	}
 	if author != userId {
-		existingUser.Reputation += 1
+		existingUser.Reputation += upVotedDiff
 	}
 	userJson, _ := json.Marshal(existingUser)
 	ctx.GetStub().PutState(author, userJson)
-	return nil
+	return upVotedDiff > 0, nil
+}
+
+func (s *SmartContract) UndoUpVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) (bool, error) {
+	var author string
+	var upVotedDiff = 0
+	if postId[0] == 'p' {
+		existingPost, err := s.GetPost(ctx, postId)
+		if err != nil {
+			return false, err
+		}
+		if existingPost == nil {
+			return false, fmt.Errorf("Post with ID %s doesn't exists", postId)
+		}
+		if contains(existingPost.UpVote, userId) {
+			existingPost.Score -= 1
+			upVotedDiff -= 1
+			existingPost.UpVote = removeElement(existingPost.UpVote, findIndex(existingPost.UpVote, userId))
+		}
+		postJson, _ := json.Marshal(existingPost)
+		author = existingPost.Author
+		ctx.GetStub().PutState(postId, postJson)
+	} else {
+		existingComment, err := s.GetComment(ctx, postId)
+		if err != nil {
+			return false, err
+		}
+		if existingComment == nil {
+			return false, fmt.Errorf("Comment with ID %s doesn't exists", postId)
+		}
+		if contains(existingComment.UpVote, userId) {
+			existingComment.Score -= 1
+			upVotedDiff -= 1
+			existingComment.UpVote = removeElement(existingComment.UpVote, findIndex(existingComment.UpVote, userId))
+		}
+		commentJson, _ := json.Marshal(existingComment)
+		author = existingComment.Author
+		ctx.GetStub().PutState(postId, commentJson)
+	}
+	existingUser, err := s.GetUser(ctx, author)
+	if err != nil {
+		return false, err
+	}
+	if existingUser == nil {
+		return false, fmt.Errorf("User with ID %s doesn't exists", userId)
+	}
+	if author != userId {
+		existingUser.Reputation += upVotedDiff
+	}
+	userJson, _ := json.Marshal(existingUser)
+	ctx.GetStub().PutState(author, userJson)
+	return upVotedDiff < 0, nil
 }
 
 /*
@@ -523,46 +729,118 @@ Allows users to downvote a post or comment. It takes post or comment Id and user
 When a user downvotes a post or comment, it decreases the item's score.
 The function also manages the reputation system by decreamenting the author's reputation score if the user is not the author.
 */
-func (s *SmartContract) DownVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) error {
+func (s *SmartContract) DownVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) (bool, error) {
 	var author string
+	var downVotedDiff = 0
 	if postId[0] == 'p' {
 		existingPost, err := s.GetPost(ctx, postId)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if existingPost == nil {
-			return fmt.Errorf("Post with ID %s doesn't exists", postId)
+			return false, fmt.Errorf("Post with ID %s doesn't exists", postId)
 		}
-		existingPost.Score -= 1
+		if !contains(existingPost.DownVote, userId) {
+			existingPost.Score -= 1
+			downVotedDiff -= 1
+			existingPost.DownVote = append(existingPost.DownVote, userId)
+			if contains(existingPost.UpVote, userId) {
+				existingPost.UpVote = removeElement(existingPost.UpVote, findIndex(existingPost.UpVote, userId))
+				existingPost.Score -= 1
+				downVotedDiff -= 1
+			}
+		}
+		// existingPost.Score -= 1
 		postJson, _ := json.Marshal(existingPost)
 		author = existingPost.Author
 		ctx.GetStub().PutState(postId, postJson)
 	} else {
 		existingComment, err := s.GetComment(ctx, postId)
 		if err != nil {
-			return err
+			return false, err
 		}
 		if existingComment == nil {
-			return fmt.Errorf("Comment with ID %s doesn't exists", postId)
+			return false, fmt.Errorf("Comment with ID %s doesn't exists", postId)
 		}
-		existingComment.Score -= 1
+		if !contains(existingComment.DownVote, userId) {
+			existingComment.Score -= 1
+			downVotedDiff -= 1
+			existingComment.DownVote = append(existingComment.DownVote, userId)
+			if contains(existingComment.UpVote, userId) {
+				existingComment.UpVote = removeElement(existingComment.UpVote, findIndex(existingComment.UpVote, userId))
+				existingComment.Score -= 1
+				downVotedDiff -= 1
+			}
+		}
 		commentJson, _ := json.Marshal(existingComment)
 		author = existingComment.Author
 		ctx.GetStub().PutState(postId, commentJson)
 	}
 	existingUser, err := s.GetUser(ctx, author)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if existingUser == nil {
-		return fmt.Errorf("User with ID %s doesn't exists", userId)
+		return false, fmt.Errorf("User with ID %s doesn't exists", userId)
 	}
 	if author != userId {
-		existingUser.Reputation -= 1
+		existingUser.Reputation += downVotedDiff
 	}
 	userJson, _ := json.Marshal(existingUser)
 	ctx.GetStub().PutState(author, userJson)
-	return nil
+	return downVotedDiff < 0, nil
+}
+
+func (s *SmartContract) UndoDownVotePost(ctx contractapi.TransactionContextInterface, postId string, userId string) (bool, error) {
+	var author string
+	var downVotedDiff = 0
+	if postId[0] == 'p' {
+		existingPost, err := s.GetPost(ctx, postId)
+		if err != nil {
+			return false, err
+		}
+		if existingPost == nil {
+			return false, fmt.Errorf("Post with ID %s doesn't exists", postId)
+		}
+		if contains(existingPost.DownVote, userId) {
+			existingPost.Score += 1
+			downVotedDiff += 1
+			existingPost.DownVote = removeElement(existingPost.DownVote, findIndex(existingPost.DownVote, userId))
+		}
+		// existingPost.Score -= 1
+		postJson, _ := json.Marshal(existingPost)
+		author = existingPost.Author
+		ctx.GetStub().PutState(postId, postJson)
+	} else {
+		existingComment, err := s.GetComment(ctx, postId)
+		if err != nil {
+			return false, err
+		}
+		if existingComment == nil {
+			return false, fmt.Errorf("Comment with ID %s doesn't exists", postId)
+		}
+		if contains(existingComment.DownVote, userId) {
+			existingComment.Score += 1
+			downVotedDiff += 1
+			existingComment.DownVote = removeElement(existingComment.DownVote, findIndex(existingComment.DownVote, userId))
+		}
+		commentJson, _ := json.Marshal(existingComment)
+		author = existingComment.Author
+		ctx.GetStub().PutState(postId, commentJson)
+	}
+	existingUser, err := s.GetUser(ctx, author)
+	if err != nil {
+		return false, err
+	}
+	if existingUser == nil {
+		return false, fmt.Errorf("User with ID %s doesn't exists", userId)
+	}
+	if author != userId {
+		existingUser.Reputation += downVotedDiff
+	}
+	userJson, _ := json.Marshal(existingUser)
+	ctx.GetStub().PutState(author, userJson)
+	return downVotedDiff > 0, nil
 }
 
 /*
@@ -587,6 +865,28 @@ func (s *SmartContract) GetComment(ctx contractapi.TransactionContextInterface, 
 	return &comment, nil
 }
 
+func (s *SmartContract) GetCommentModified(ctx contractapi.TransactionContextInterface, commentId string, userId string) (*CommentModified, error) {
+	commentJson, err := ctx.GetStub().GetState(commentId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
+	}
+	if commentJson == nil {
+		return nil, nil
+	}
+
+	var comment Comment
+	err = json.Unmarshal(commentJson, &comment)
+	if err != nil {
+		return nil, err
+	}
+	var commentModified *CommentModified
+	commentModified, err = s.convertToCommentModified(ctx, &comment, userId)
+	if err != nil {
+		return nil, err
+	}
+	return commentModified, nil
+}
+
 /*
 Used to create comments on blockchain. It takes various parameters like  content, author,creation timestamp, comment Id, parent Id.
 It ensures that comments are associated with their parent posts or comments, by adding comment id in comments or replies of parent post or comment respectively.
@@ -598,6 +898,13 @@ func (s *SmartContract) CreateComment(ctx contractapi.TransactionContextInterfac
 	}
 	if err == nil && existingComment != nil {
 		return fmt.Errorf("Comment with ID %s already exists", commentId)
+	}
+	existingUser, err := s.GetUser(ctx, author)
+	if err != nil {
+		return err
+	}
+	if existingUser == nil {
+		return fmt.Errorf("User with ID %s doesn't exists", author)
 	}
 	var communityId string
 	if parentId[0] == 'p' { //If parent is post
@@ -640,9 +947,14 @@ func (s *SmartContract) CreateComment(ctx contractapi.TransactionContextInterfac
 		Community: communityId,
 		HideCount: 0,
 		ShowCount: 0,
+		UpVote:    make([]string, 0),
+		DownVote:  make([]string, 0),
 	}
+	existingUser.Comments = append(existingUser.Comments, commentId)
 	commentJson, _ := json.Marshal(comment)
 	ctx.GetStub().PutState(commentId, commentJson)
+	userJson, _ := json.Marshal(existingUser)
+	ctx.GetStub().PutState(author, userJson)
 	return nil
 }
 
@@ -651,7 +963,159 @@ Generates a personalized feed for a user. It takes user Id and page No as parame
 It compiles posts from the user's joined communities, filtering out any hidden posts based on community moderation, and sorts them by timestamp in reverse chronological order.
 Uses pagination for managing large feeds.
 */
-func (s *SmartContract) GetUserFeed(ctx contractapi.TransactionContextInterface, userId string, pageNo int) ([]*Post, error) {
+func (s *SmartContract) convertToPostModified(ctx contractapi.TransactionContextInterface, original *Post, userId string) (*PostModified, error) {
+
+	// Create a new PostModified instance
+	existingAuthor, err := s.GetUser(ctx, original.Author)
+	if err != nil {
+		return nil, err
+	}
+	if existingAuthor == nil {
+		return nil, fmt.Errorf("User with ID %s doesn't exists", original.Author)
+	}
+	existingCommunity, err := s.GetCommunity(ctx, original.Community)
+	if err != nil {
+		return nil, err
+	}
+	if existingAuthor == nil {
+		return nil, fmt.Errorf("Community with ID %s doesn't exists", original.Community)
+	}
+	modified := PostModified{
+		ID:            original.ID,
+		Title:         original.Title,
+		Content:       original.Content,
+		Author:        original.Author,
+		Score:         original.Score,
+		CreatedAt:     original.CreatedAt,
+		Comments:      original.Comments,
+		Hidden:        original.Hidden,
+		Community:     original.Community,
+		HideCount:     original.HideCount,
+		ShowCount:     original.ShowCount,
+		AuthorName:    existingAuthor.Username, // Set your desired value for AuthorName
+		CommunityName: existingCommunity.Name,  // Set your desired value for CommunityName
+		HasUpvoted:    contains(original.UpVote, userId),
+		HasDownvoted:  contains(original.DownVote, userId),
+	}
+	fmt.Println(original)
+	return &modified, nil
+}
+
+func (s *SmartContract) convertToCommentModified(ctx contractapi.TransactionContextInterface, original *Comment, userId string) (*CommentModified, error) {
+
+	// Create a new PostModified instance
+	existingAuthor, err := s.GetUser(ctx, original.Author)
+	if err != nil {
+		return nil, err
+	}
+	if existingAuthor == nil {
+		return nil, fmt.Errorf("User with ID %s doesn't exists", original.Author)
+	}
+	existingCommunity, err := s.GetCommunity(ctx, original.Community)
+	if err != nil {
+		return nil, err
+	}
+	if existingAuthor == nil {
+		return nil, fmt.Errorf("Community with ID %s doesn't exists", original.Community)
+	}
+	modified := CommentModified{
+		ID:            original.ID,
+		Content:       original.Content,
+		Author:        original.Author,
+		Score:         original.Score,
+		CreatedAt:     original.CreatedAt,
+		Replies:       original.Replies,
+		Hidden:        original.Hidden,
+		Community:     original.Community,
+		HideCount:     original.HideCount,
+		ShowCount:     original.ShowCount,
+		AuthorName:    existingAuthor.Username, // Set your desired value for AuthorName
+		CommunityName: existingCommunity.Name,  // Set your desired value for CommunityName
+		HasUpvoted:    contains(original.UpVote, userId),
+		HasDownvoted:  contains(original.DownVote, userId),
+		Parent:        original.Parent,
+	}
+	fmt.Println(original)
+	return &modified, nil
+}
+
+func (s *SmartContract) convertToUserModified(ctx contractapi.TransactionContextInterface, original *User) (*UserModified, error) {
+
+	// Create a new PostModified instance
+	// existingAuthor, err := s.GetUser(ctx, original.Author)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if existingAuthor == nil {
+	// 	return nil, fmt.Errorf("User with ID %s doesn't exists", original.Author)
+	// }
+	// existingCommunity, err := s.GetCommunity(ctx, original.Community)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if existingAuthor == nil {
+	// 	return nil, fmt.Errorf("Community with ID %s doesn't exists", original.Community)
+	// }
+	modified := UserModified{
+		ID:         original.ID,
+		Reputation: original.Reputation,
+		Email:      original.Email,
+		Username:   original.Username,
+	}
+	//fmt.Println(original)
+	return &modified, nil
+}
+
+func (s *SmartContract) convertToCommunityModified(ctx contractapi.TransactionContextInterface, original *Community) (*CommunityModified, error) {
+
+	// Create a new PostModified instance
+	// existingAuthor, err := s.GetUser(ctx, original.Author)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if existingAuthor == nil {
+	// 	return nil, fmt.Errorf("User with ID %s doesn't exists", original.Author)
+	// }
+	// existingCommunity, err := s.GetCommunity(ctx, original.Community)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// if existingAuthor == nil {
+	// 	return nil, fmt.Errorf("Community with ID %s doesn't exists", original.Community)
+	// }
+
+	var Moderators []UserModified
+	var Users []UserModified
+	for id := range original.Users {
+		// var userModified *UserModified
+		userModified, err := s.GetUserModified(ctx, original.Users[id])
+		if err != nil {
+			return nil, err
+		}
+		Users = append(Users, *userModified)
+	}
+	for id := range original.Moderators {
+		// var userModified *UserModified
+		userModified, err := s.GetUserModified(ctx, original.Moderators[id])
+		if err != nil {
+			return nil, err
+		}
+		Moderators = append(Moderators, *userModified)
+	}
+	modified := CommunityModified{
+		ID:          original.ID,
+		Name:        original.Name,
+		Description: original.Description,
+		Creator:     original.Creator,
+		CreatedAt:   original.CreatedAt,
+		Moderators:  Moderators,
+		Users:       Users,
+	}
+	//fmt.Println(original)
+	return &modified, nil
+}
+
+func (s *SmartContract) GetUserFeed(ctx contractapi.TransactionContextInterface, userId string, pageNo int) ([]*PostModified, error) {
 	// var userFeed []*Post
 	// existingUser, err := s.GetUser(ctx, userId)
 	// if err != nil {
@@ -694,6 +1158,7 @@ func (s *SmartContract) GetUserFeed(ctx contractapi.TransactionContextInterface,
 	// }
 	// return userFeed[PostsPerPage*pageNo : min(PostsPerPage*(pageNo+1), len(userFeed))], nil
 	var userFeed []*Post
+	var userFeedModified []*PostModified
 	existingUser, err := s.GetUser(ctx, userId)
 	if err != nil {
 		return nil, err
@@ -739,10 +1204,17 @@ func (s *SmartContract) GetUserFeed(ctx contractapi.TransactionContextInterface,
 	end := min((pageNo+1)*PostsPerPage, len(userFeed))
 
 	if start >= len(userFeed) {
-		return []*Post{}, nil
+		return []*PostModified{}, nil
 	}
 
-	return userFeed[start:end], nil
+	for _, originalPost := range userFeed[start:end] {
+		modifiedPost, error := s.convertToPostModified(ctx, originalPost, userId)
+		if error != nil {
+			return nil, error
+		}
+		userFeedModified = append(userFeedModified, modifiedPost)
+	}
+	return userFeedModified, nil
 }
 
 func (s *SmartContract) fetchCommunityPosts(ctx contractapi.TransactionContextInterface, postIDs []string) []*Post {
@@ -766,8 +1238,9 @@ It can either replies to a parent comment or comments on a post, in reverse chro
 It ensures that hidden comments, as determined by community moderation, are excluded.
 Uses pagination for managing large feeds.
 */
-func (s *SmartContract) GetCommentFeed(ctx contractapi.TransactionContextInterface, parentId string, pageNo int) ([]*Comment, error) {
+func (s *SmartContract) GetCommentFeed(ctx contractapi.TransactionContextInterface, parentId string, pageNo int, userId string) ([]*CommentModified, error) {
 	var commentFeed []*Comment
+	var commentFeedModified []*CommentModified
 	var commentList []string
 	if parentId[0] == 'p' { //If parent is post
 		existingPost, err := s.GetPost(ctx, parentId)
@@ -802,9 +1275,256 @@ func (s *SmartContract) GetCommentFeed(ctx contractapi.TransactionContextInterfa
 		return commentFeed[i].CreatedAt.After(commentFeed[j].CreatedAt)
 	})
 	if len(commentFeed) <= CommentsPerPage*pageNo {
-		return []*Comment{}, nil
+		return []*CommentModified{}, nil
 	}
-	return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
+
+	start := CommentsPerPage * pageNo
+	end := min(CommentsPerPage*(pageNo+1), len(commentFeed))
+	for _, originalComment := range commentFeed[start:end] {
+		modifiedComment, error := s.convertToCommentModified(ctx, originalComment, userId)
+		if error != nil {
+			return nil, error
+		}
+		commentFeedModified = append(commentFeedModified, modifiedComment)
+	}
+	return commentFeedModified, nil
+	// return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
+
+}
+
+func (s *SmartContract) GetUserProfileComments(ctx contractapi.TransactionContextInterface, targetUserId string, userId string, pageNo int) ([]*CommentModified, error) {
+	var commentFeed []*Comment
+	var commentFeedModified []*CommentModified
+	var commentList []string
+	// if parentId[0] == 'p' { //If parent is post
+	// 	existingPost, err := s.GetPost(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingPost == nil {
+	// 		return nil, fmt.Errorf("Post with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingPost.Comments
+	// } else { //If parent is comment
+	// 	existingComment, err := s.GetComment(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingComment == nil {
+	// 		return nil, fmt.Errorf("Comment with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingComment.Replies
+	// }
+	targetUser, err := s.GetUser(ctx, targetUserId)
+	commentList = targetUser.Comments
+	if err != nil {
+		return nil, err
+	}
+	for i := len(commentList) - 1; i >= 0; i-- {
+		comment, err := s.GetComment(ctx, commentList[i]) // Function to get a post by ID
+		if comment.Hidden {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		commentFeed = append(commentFeed, comment)
+	}
+	// sort.Slice(commentFeed, func(i, j int) bool {
+	// 	return commentFeed[i].CreatedAt.After(commentFeed[j].CreatedAt)
+	// })
+	if len(commentFeed) <= CommentsPerPage*pageNo {
+		return []*CommentModified{}, nil
+	}
+
+	start := CommentsPerPage * pageNo
+	end := min(CommentsPerPage*(pageNo+1), len(commentFeed))
+	for _, originalComment := range commentFeed[start:end] {
+		modifiedComment, error := s.convertToCommentModified(ctx, originalComment, userId)
+		if error != nil {
+			return nil, error
+		}
+		commentFeedModified = append(commentFeedModified, modifiedComment)
+	}
+	return commentFeedModified, nil
+	// return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
+
+}
+
+func (s *SmartContract) GetUserProfilePosts(ctx contractapi.TransactionContextInterface, targetUserId string, userId string, pageNo int) ([]*PostModified, error) {
+	var postFeed []*Post
+	var postFeedModified []*PostModified
+	var postList []string
+	// if parentId[0] == 'p' { //If parent is post
+	// 	existingPost, err := s.GetPost(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingPost == nil {
+	// 		return nil, fmt.Errorf("Post with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingPost.Comments
+	// } else { //If parent is comment
+	// 	existingComment, err := s.GetComment(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingComment == nil {
+	// 		return nil, fmt.Errorf("Comment with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingComment.Replies
+	// }
+	targetUser, err := s.GetUser(ctx, targetUserId)
+	postList = targetUser.Posts
+	if err != nil {
+		return nil, err
+	}
+	for i := len(postList) - 1; i >= 0; i-- {
+		post, err := s.GetPost(ctx, postList[i]) // Function to get a post by ID
+		if post.Hidden {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		postFeed = append(postFeed, post)
+	}
+	// sort.Slice(commentFeed, func(i, j int) bool {
+	// 	return commentFeed[i].CreatedAt.After(commentFeed[j].CreatedAt)
+	// })
+	if len(postFeed) <= PostsPerPage*pageNo {
+		return []*PostModified{}, nil
+	}
+
+	start := PostsPerPage * pageNo
+	end := min(PostsPerPage*(pageNo+1), len(postFeed))
+	for _, originalpost := range postFeed[start:end] {
+		modifiedpost, error := s.convertToPostModified(ctx, originalpost, userId)
+		if error != nil {
+			return nil, error
+		}
+		postFeedModified = append(postFeedModified, modifiedpost)
+	}
+	return postFeedModified, nil
+	// return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
+
+}
+
+func (s *SmartContract) GetCommunityPosts(ctx contractapi.TransactionContextInterface, communityId string, userId string, pageNo int) ([]*PostModified, error) {
+	var postFeed []*Post
+	var postFeedModified []*PostModified
+	var postList []string
+	// if parentId[0] == 'p' { //If parent is post
+	// 	existingPost, err := s.GetPost(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingPost == nil {
+	// 		return nil, fmt.Errorf("Post with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingPost.Comments
+	// } else { //If parent is comment
+	// 	existingComment, err := s.GetComment(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingComment == nil {
+	// 		return nil, fmt.Errorf("Comment with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingComment.Replies
+	// }
+	targetCommunity, err := s.GetCommunity(ctx, communityId)
+	postList = targetCommunity.Posts
+	if err != nil {
+		return nil, err
+	}
+	for i := len(postList) - 1; i >= 0; i-- {
+		post, err := s.GetPost(ctx, postList[i]) // Function to get a post by ID
+		if post.Hidden {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		postFeed = append(postFeed, post)
+	}
+	// sort.Slice(commentFeed, func(i, j int) bool {
+	// 	return commentFeed[i].CreatedAt.After(commentFeed[j].CreatedAt)
+	// })
+	if len(postFeed) <= PostsPerPage*pageNo {
+		return []*PostModified{}, nil
+	}
+
+	start := PostsPerPage * pageNo
+	end := min(PostsPerPage*(pageNo+1), len(postFeed))
+	for _, originalpost := range postFeed[start:end] {
+		modifiedpost, error := s.convertToPostModified(ctx, originalpost, userId)
+		if error != nil {
+			return nil, error
+		}
+		postFeedModified = append(postFeedModified, modifiedpost)
+	}
+	return postFeedModified, nil
+	// return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
+
+}
+
+func (s *SmartContract) GetCommunityAppealed(ctx contractapi.TransactionContextInterface, communityId string, userId string, pageNo int) ([]*PostModified, error) {
+	var postFeed []*Post
+	var postFeedModified []*PostModified
+	var postList []string
+	// if parentId[0] == 'p' { //If parent is post
+	// 	existingPost, err := s.GetPost(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingPost == nil {
+	// 		return nil, fmt.Errorf("Post with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingPost.Comments
+	// } else { //If parent is comment
+	// 	existingComment, err := s.GetComment(ctx, parentId)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	if existingComment == nil {
+	// 		return nil, fmt.Errorf("Comment with ID %s doesn't exists", parentId)
+	// 	}
+	// 	commentList = existingComment.Replies
+	// }
+	targetCommunity, err := s.GetCommunity(ctx, communityId)
+	postList = targetCommunity.Appealed
+	if err != nil {
+		return nil, err
+	}
+	for i := len(postList) - 1; i >= 0; i-- {
+		post, err := s.GetPost(ctx, postList[i]) // Function to get a post by ID
+		if post.Hidden {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		postFeed = append(postFeed, post)
+	}
+	// sort.Slice(commentFeed, func(i, j int) bool {
+	// 	return commentFeed[i].CreatedAt.After(commentFeed[j].CreatedAt)
+	// })
+	if len(postFeed) <= PostsPerPage*pageNo {
+		return []*PostModified{}, nil
+	}
+
+	start := PostsPerPage * pageNo
+	end := min(PostsPerPage*(pageNo+1), len(postFeed))
+	for _, originalpost := range postFeed[start:end] {
+		modifiedpost, error := s.convertToPostModified(ctx, originalpost, userId)
+		if error != nil {
+			return nil, error
+		}
+		postFeedModified = append(postFeedModified, modifiedpost)
+	}
+	return postFeedModified, nil
+	// return commentFeed[CommentsPerPage*pageNo : min(CommentsPerPage*(pageNo+1), len(commentFeed))], nil
 
 }
 

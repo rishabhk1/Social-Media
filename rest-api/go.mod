@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
+	github.com/google/uuid v1.5.0
 	github.com/hyperledger/fabric-gateway v1.3.1
 	golang.ngrok.com/ngrok v1.9.0
 	google.golang.org/grpc v1.57.0

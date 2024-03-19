@@ -67,6 +67,7 @@ func Serve(setups OrgSetup) {
 	http.HandleFunc("/user_profile/comments", setups.GetUserProfileComments)
 	http.HandleFunc("/community/posts", setups.GetCommunityPosts)
 	http.HandleFunc("/community/appealed", setups.GetCommunityAppealed)
+	http.HandleFunc("/community/name", setups.GetCommunityName)
 	http.HandleFunc("/delete", setups.DeletePost)
 	http.HandleFunc("/appeal", setups.AppealPost)
 	http.HandleFunc("/hide", setups.HidePostModerator)

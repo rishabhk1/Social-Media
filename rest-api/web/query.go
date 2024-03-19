@@ -109,6 +109,27 @@ func (setup OrgSetup) GetUserFeed(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
+func (setup OrgSetup) GetCommunityName(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Query request")
+	//queryParams := r.URL.Query()
+	//chainCodeName := queryParams.Get("chaincodeid")
+	chainCodeName := "basic"
+	channelID := "mychannel"
+	function := "GetMetaData"
+	// args := r.URL.Query().Get("id")
+	// pageNo := r.URL.Query().Get("pageNo")
+	fmt.Printf("channel: %s, chaincode: %s, function: %s\n", channelID, chainCodeName, function)
+	network := setup.Gateway.GetNetwork(channelID)
+	contract := network.GetContract(chainCodeName)
+	w.Header().Set("Content-Type", "application/json")
+	evaluateResponse, err := contract.EvaluateTransaction(function, "md")
+	if err != nil {
+		fmt.Fprintf(w, "%s", err)
+		return
+	}
+	fmt.Fprintf(w, "%s", evaluateResponse)
+}
+
 func (setup OrgSetup) GetCommentFeed(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Received Query request")
 	//queryParams := r.URL.Query()

@@ -71,7 +71,7 @@ func Serve(setups OrgSetup) {
 	http.HandleFunc("/delete", setups.DeletePost)
 	http.HandleFunc("/appeal", setups.AppealPost)
 	http.HandleFunc("/hide", setups.HidePostModerator)
-	http.HandleFunc("/moderator", setups.SelectModerator)
+	// http.HandleFunc("/moderator", setups.SelectModerator)
 	http.HandleFunc("/show", setups.ShowPostModerator)
 	http.HandleFunc("/unappeal", setups.UnAppealPost)
 	//fmt.Printf("Listening (%s)...\n", listener.URL())

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
@@ -219,7 +218,17 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		Users:       []string{"1", "2"},
 		Appealed:    []string{"p_2"},
 	}
-
+	// community2 := Community{
+	// 	ID:          "co_2",
+	// 	Name:        "Comm2",
+	// 	Description: "Demo Community",
+	// 	Creator:     "1",
+	// 	CreatedAt:   ctime,
+	// 	Moderators:  []string{"1"},
+	// 	Posts:       []string{"p_3"},
+	// 	Users:       []string{"1", "2"},
+	// 	Appealed:    []string{""},
+	// }
 	ctime, _ = time.Parse(layout, "2023-04-17T15:04:05.000Z")
 	post1 := Post{
 		ID:        "p_1",
@@ -257,7 +266,23 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		HideVote:  make([]string, 0),
 		ShowVote:  make([]string, 0),
 	}
-
+	// post3 := Post{
+	// 	ID:        "p_3",
+	// 	Title:     "Demo Post3",
+	// 	Content:   "Demo post content3",
+	// 	Author:    "2",
+	// 	Score:     11,
+	// 	CreatedAt: ctime,
+	// 	Comments:  make([]string, 0),
+	// 	Hidden:    false,
+	// 	Community: "co_2",
+	// 	HideCount: 0,
+	// 	ShowCount: 0,
+	// 	UpVote:    make([]string, 0),
+	// 	DownVote:  make([]string, 0),
+	// 	HideVote:  make([]string, 0),
+	// 	ShowVote:  make([]string, 0),
+	// }
 	comment1 := Comment{
 		ID:        "c_1",
 		Content:   "comment of p_1",
@@ -326,7 +351,14 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	if err != nil {
 		return err
 	}
-
+	// community2Json, err := json.Marshal(community2)
+	// if err != nil {
+	// 	return err
+	// }
+	// err = ctx.GetStub().PutState(community2.ID, community2Json)
+	// if err != nil {
+	// 	return err
+	// }
 	post1Json, err := json.Marshal(post1)
 	if err != nil {
 		return err
@@ -344,6 +376,14 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 	if err != nil {
 		return err
 	}
+	// post3Json, err := json.Marshal(post3)
+	// if err != nil {
+	// 	return err
+	// }
+	// err = ctx.GetStub().PutState(post3.ID, post3Json)
+	// if err != nil {
+	// 	return err
+	// }
 	comment1Json, err := json.Marshal(comment1)
 	if err != nil {
 		return err
@@ -438,7 +478,7 @@ func (s *SmartContract) GetUserModified(ctx contractapi.TransactionContextInterf
 		return nil, fmt.Errorf("failed to read user from ledger: %w", err)
 	}
 	if userJson == nil {
-		return nil, nil
+		return nil, fmt.Errorf("failed to read user from ledger: %w", err)
 	}
 
 	var user User
@@ -460,7 +500,7 @@ func (s *SmartContract) GetCommunityModified(ctx contractapi.TransactionContextI
 		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
 	}
 	if communityJson == nil {
-		return nil, nil
+		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
 	}
 
 	var community Community
@@ -519,7 +559,7 @@ func (s *SmartContract) CreateCommunity(ctx contractapi.TransactionContextInterf
 	}
 	existingMetaData.Name = append(existingMetaData.Name, communityName)
 	metaDataJson, _ := json.Marshal(existingMetaData)
-	ctx.GetStub().PutState("1", metaDataJson)
+	ctx.GetStub().PutState("md", metaDataJson)
 	community.Users = append(community.Users, creator)
 	existingUser.Communities = append(existingUser.Communities, id)
 	communityJson, _ := json.Marshal(community)
@@ -540,7 +580,7 @@ func (s *SmartContract) GetCommunity(ctx contractapi.TransactionContextInterface
 		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
 	}
 	if communityJson == nil {
-		return nil, nil
+		return nil, fmt.Errorf("failed to read community from ledger: %w", err)
 	}
 
 	var community Community
@@ -1268,31 +1308,57 @@ func (s *SmartContract) GetUserFeed(ctx contractapi.TransactionContextInterface,
 
 	// Create a map to store community posts and channels to wait for them
 	communityPosts := make(map[string][]*Post)
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
+	// var mu sync.Mutex // Mutex for synchronizing access to communityPosts
+	// for _, community := range existingUser.Communities {
+	// 	wg.Add(1)
+	// 	fmt.Println("inside go", community)
+	// 	go func(communityID string) {
+	// 		defer wg.Done()
 
+	// 		existingCommunity, err := s.GetCommunity(ctx, communityID)
+	// 		if err != nil {
+	// 			// Handle the error
+	// 			return
+	// 		}
+
+	// 		// Fetch posts in parallel
+	// 		posts := s.fetchCommunityPosts(ctx, existingCommunity.Posts)
+
+	// 		// Lock the mutex before updating the map
+	// 		mu.Lock()
+	// 		communityPosts[communityID] = posts
+	// 		mu.Unlock() // Unlock the mutex after updating the map
+	// 	}(community)
+	// }
+
+	// wg.Wait()
 	for _, community := range existingUser.Communities {
-		wg.Add(1)
-		go func(communityID string) {
-			defer wg.Done()
+		fmt.Println("inside sequential", community)
 
-			existingCommunity, err := s.GetCommunity(ctx, communityID)
-			if err != nil {
-				// Handle the error
-				return
-			}
+		existingCommunity, err := s.GetCommunity(ctx, community)
+		if err != nil {
+			// Handle the error
+			return nil, err
+		}
 
-			// Fetch posts in parallel
-			communityPosts[communityID] = s.fetchCommunityPosts(ctx, existingCommunity.Posts)
-		}(community)
+		// Fetch posts sequentially
+		posts := s.fetchCommunityPosts(ctx, existingCommunity.Posts)
+
+		// Update the map
+		communityPosts[community] = posts
 	}
-
-	wg.Wait()
-
 	// Process community posts
+	// for _, community := range existingUser.Communities {
+	// 	userFeed = append(userFeed, communityPosts[community]...)
+	// 	fmt.Println("outside go", userFeed)
+	// }
 	for _, community := range existingUser.Communities {
-		userFeed = append(userFeed, communityPosts[community]...)
+		// Ensure that the community exists in the map before appending
+		if posts, ok := communityPosts[community]; ok {
+			userFeed = append(userFeed, posts...)
+		}
 	}
-
 	// Sort the user's feed by timestamp (reverse chronological order)
 	sort.Slice(userFeed, func(i, j int) bool {
 		return userFeed[i].CreatedAt.After(userFeed[j].CreatedAt)
@@ -1745,6 +1811,30 @@ func (s *SmartContract) DeletePost(ctx contractapi.TransactionContextInterface, 
 		}
 		if userId != existingComment.Author {
 			return fmt.Errorf("User cannot delete comment with ID %s ", postId)
+		}
+		if existingComment.Parent[0] == 'p' {
+			parentPost, err := s.GetPost(ctx, existingComment.Parent)
+			if err != nil {
+				return err
+			}
+			if parentPost == nil {
+				return fmt.Errorf("parent post with ID %s doesn't exists", existingComment.Parent)
+			}
+			parentPost.Comments = removeElement(parentPost.Comments, findIndex(parentPost.Comments, existingComment.ID))
+			parentPostJson, _ := json.Marshal(parentPost)
+			ctx.GetStub().PutState(existingComment.Parent, parentPostJson)
+
+		} else {
+			parentPost, err := s.GetComment(ctx, existingComment.Parent)
+			if err != nil {
+				return err
+			}
+			if parentPost == nil {
+				return fmt.Errorf("parent post with ID %s doesn't exists", postId)
+			}
+			parentPost.Replies = removeElement(parentPost.Replies, findIndex(parentPost.Replies, existingComment.ID))
+			parentPostJson, _ := json.Marshal(parentPost)
+			ctx.GetStub().PutState(existingComment.Parent, parentPostJson)
 		}
 		existingComment.Hidden = true
 		commentJson, _ := json.Marshal(existingComment)

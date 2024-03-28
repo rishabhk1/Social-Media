@@ -12,10 +12,12 @@ import (
 	//"github.com/hyperledger/fabric-gateway/pkg/client"
 	//"github.com/hyperledger/fabric-sdk-go/pkg/core/config"
 	//"github.com/hyperledger/fabric-sdk-go/pkg/gateway"
-
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"rest-api/web"
+	"time"
 )
 
 // type User struct {
@@ -75,29 +77,83 @@ import (
 // 	log.Fatal(http.ListenAndServe(":8080", r))
 // }
 
-// func getCommunity(w http.ResponseWriter, r *http.Request) {
-// 	log.Println("--> Endpoint hit: getCommunity")
-// 	v := r.URL.Query()
-// 	name := v.Get("name")
-// 	log.Printf("%v", name)
-// 	log.Printf("requesting community %v", name)
-// 	communityJson, err := contract.EvaluateTransaction("GetCommunity", name)
-// 	var community Community
+//	func getCommunity(w http.ResponseWriter, r *http.Request) {
+//		log.Println("--> Endpoint hit: getCommunity")
+//		v := r.URL.Query()
+//		name := v.Get("name")
+//		log.Printf("%v", name)
+//		log.Printf("requesting community %v", name)
+//		communityJson, err := contract.EvaluateTransaction("GetCommunity", name)
+//		var community Community
+//		if err != nil {
+//			log.Printf("failed to evaluate chaincode: %v", err)
+//			w.WriteHeader(http.StatusNotFound)
+//		}
+//		err = json.Unmarshal(communityJson, &community)
+//		if err != nil {
+//			log.Printf("error marshaling/unmarshaling profile: %v", err)
+//		}
+//		communityJson, err = json.Marshal(community)
+//		if err != nil {
+//			log.Printf("error marshaling/unmarshaling profile: %v", err)
+//		}
+//		w.Header().Set("Content-Type", "application/json")
+//		w.Write(communityJson)
+//	}
+type ScheduledTask struct {
+	Id        string    `json:"id"`
+	Execution time.Time `json:"execution"`
+}
+
+// func (setup *OrgSetup) SelectModerator(communityId string) {
+// 	// fmt.Println("Received Invoke request")
+// 	// if err := r.ParseForm(); err != nil {
+// 	// 	fmt.Fprintf(w, "ParseForm() err: %s", err)
+// 	// 	return
+// 	// }
+// 	chainCodeName := "basic"
+// 	channelID := "mychannel"
+// 	function := "SelectModerator"
+// 	// args := r.Form["args"]
+// 	// for _, value := range args {
+// 	// 	fmt.Println(value)
+// 	// }
+// 	fmt.Printf("channel: %s, chaincode: %s, function: %s, args: %s\n", channelID, chainCodeName, function, communityId)
+// 	network := setup.Gateway.GetNetwork(channelID)
+// 	contract := network.GetContract(chainCodeName)
+// 	txn_proposal, err := contract.NewProposal(function, client.WithArguments(communityId))
 // 	if err != nil {
-// 		log.Printf("failed to evaluate chaincode: %v", err)
-// 		w.WriteHeader(http.StatusNotFound)
+// 		//fmt.Fprintf(w, "Error creating txn proposal: %s", err)
+// 		return
 // 	}
-// 	err = json.Unmarshal(communityJson, &community)
+// 	txn_endorsed, err := txn_proposal.Endorse()
 // 	if err != nil {
-// 		log.Printf("error marshaling/unmarshaling profile: %v", err)
+// 		//fmt.Fprintf(w, "Error endorsing txn: %s", err)
+// 		return
 // 	}
-// 	communityJson, err = json.Marshal(community)
+// 	txn_committed, err := txn_endorsed.Submit()
 // 	if err != nil {
-// 		log.Printf("error marshaling/unmarshaling profile: %v", err)
+// 		//fmt.Fprintf(w, "Error submitting transaction: %s", err)
+// 		return
 // 	}
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.Write(communityJson)
+// 	//fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
+// 	fmt.Println(txn_committed.TransactionID())
+// 	//fmt.Fprintf(w, "%s", txn_committed.TransactionID())
+// 	// w.WriteHeader(http.StatusOK)
+// 	fmt.Printf("%s", txn_endorsed.Result())
 // }
+
+func loadTasksFromFile() []ScheduledTask {
+	data, err := ioutil.ReadFile("tasks.json")
+	if err != nil {
+		return nil
+	}
+
+	var tasks []ScheduledTask
+	json.Unmarshal(data, &tasks)
+
+	return tasks
+}
 
 func main() {
 	log.Println("============ Application starts ============")
@@ -123,7 +179,16 @@ func main() {
 	if err != nil {
 		fmt.Println("Error initializing setup for Org1: ", err)
 	}
+
 	web.Serve(web.OrgSetup(*orgSetup))
+	tasks := loadTasksFromFile()
+	for _, task := range tasks {
+		duration := task.Execution.Sub(time.Now().UTC())
+		time.AfterFunc(duration, func() {
+			orgSetup.SelectModerator(task.Id)
+		})
+	}
+
 }
 
 // 	orgSetup, err := web.Initialize(orgConfig)

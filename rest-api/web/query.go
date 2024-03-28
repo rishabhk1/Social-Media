@@ -103,9 +103,12 @@ func (setup OrgSetup) GetUserFeed(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, pageNo)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		//fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -124,9 +127,12 @@ func (setup OrgSetup) GetCommunityName(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, "md")
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -146,9 +152,12 @@ func (setup OrgSetup) GetCommentFeed(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, pageNo, userId)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -168,9 +177,12 @@ func (setup OrgSetup) GetUserProfilePosts(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, userId, pageNo)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -190,9 +202,12 @@ func (setup OrgSetup) GetUserProfileComments(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, userId, pageNo)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -212,9 +227,12 @@ func (setup OrgSetup) GetCommunityPosts(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, userId, pageNo)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }
 
@@ -234,8 +252,11 @@ func (setup OrgSetup) GetCommunityAppealed(w http.ResponseWriter, r *http.Reques
 	w.Header().Set("Content-Type", "application/json")
 	evaluateResponse, err := contract.EvaluateTransaction(function, args, userId, pageNo)
 	if err != nil {
-		fmt.Fprintf(w, "%s", err)
+		http.Error(w, "Error", http.StatusInternalServerError)
+		// fmt.Fprintf(w, "%s", err)
+		fmt.Println(err)
 		return
 	}
+	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "%s", evaluateResponse)
 }

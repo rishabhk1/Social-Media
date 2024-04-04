@@ -5,6 +5,7 @@ go 1.21
 toolchain go1.21.0
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/google/uuid v1.5.0
 	github.com/hyperledger/fabric-gateway v1.3.1
 	golang.ngrok.com/ngrok v1.9.0

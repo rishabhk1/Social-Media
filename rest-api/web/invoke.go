@@ -8,11 +8,28 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
+	"github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 )
 
 // Invoke handles chaincode invoke requests.
+
+func generateToken(username string) (string, error) {
+	token := jwt.New(jwt.SigningMethodHS256)
+
+	claims := token.Claims.(jwt.MapClaims)
+	claims["username"] = username
+	claims["exp"] = time.Now().Add(time.Hour * 72).Unix() // Token expires after 72 hours
+	fmt.Print(secretKey)
+	tokenString, err := token.SignedString([]byte(secretKey))
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
+
 func TodayDateTime() string {
 	current := time.Now().UTC()
 	formattedDate := current.Format("2006-01-02T15:04:05.000Z")
@@ -672,7 +689,7 @@ func (setup *OrgSetup) ShowPostModerator(w http.ResponseWriter, r *http.Request)
 	txn_endorsed, err := txn_proposal.Endorse()
 	if err != nil {
 		http.Error(w, "Error", http.StatusInternalServerError)
-		fmt.Printf("Error endorsing txn: %s", err)
+		fmt.Printf("Error endorsing txn: %s", err.Error())
 		return
 	}
 	txn_committed, err := txn_endorsed.Submit()
@@ -770,4 +787,43 @@ func (setup *OrgSetup) UnAppealPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
+}
+
+func (setup OrgSetup) Login(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Query request")
+	//queryParams := r.URL.Query()
+	//chainCodeName := queryParams.Get("chaincodeid")
+	// chainCodeName := "basic"
+	// channelID := "mychannel"
+	// function := "GetCommunityAppealed"
+	args := r.Form["args"]
+	for _, value := range args {
+		fmt.Println(value)
+	}
+	// fmt.Printf("channel: %s, chaincode: %s, function: %s, args: %s\n", channelID, chainCodeName, function, args)
+	// network := setup.Gateway.GetNetwork(channelID)
+	// contract := network.GetContract(chainCodeName)
+	w.Header().Set("Content-Type", "application/json")
+	// evaluateResponse, err := contract.EvaluateTransaction(function, args, userId, pageNo)
+	// if err != nil {
+	// 	http.Error(w, "Error", http.StatusInternalServerError)
+	// 	// fmt.Fprintf(w, "%s", err)
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	token, err := generateToken("1")
+	if err != nil {
+		http.Error(w, "Token Error", http.StatusInternalServerError)
+		fmt.Printf("Error submitting transaction: %s", err)
+		return
+	}
+	response := map[string]string{
+		"userId": "1",
+		"token":  token,
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	// Send the response
+	json.NewEncoder(w).Encode(response)
 }

@@ -1849,6 +1849,13 @@ It takes postId or comment Id and user Id as parameters
 It adds the post or comment to the list of appealed items in the associated community
 */
 func (s *SmartContract) AppealPost(ctx contractapi.TransactionContextInterface, postId string, userId string) error {
+	isAppealedVal, err := s.isAppealed(ctx, postId)
+	if err != nil {
+		return err
+	}
+	if isAppealedVal {
+		return nil
+	}
 	var communityId string
 	if postId[0] == 'p' {
 		existingPost, err := s.GetPost(ctx, postId)
@@ -1858,7 +1865,9 @@ func (s *SmartContract) AppealPost(ctx contractapi.TransactionContextInterface, 
 		if existingPost == nil {
 			return fmt.Errorf("Post with ID %s doesn't exists", postId)
 		}
-
+		if existingPost.Hidden {
+			return nil
+		}
 		communityId = existingPost.Community
 
 	} else {
@@ -1868,6 +1877,9 @@ func (s *SmartContract) AppealPost(ctx contractapi.TransactionContextInterface, 
 		}
 		if existingComment == nil {
 			return fmt.Errorf("Comment with ID %s doesn't exists", postId)
+		}
+		if existingComment.Hidden {
+			return nil
 		}
 		communityId = existingComment.Community
 	}

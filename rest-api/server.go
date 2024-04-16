@@ -165,14 +165,14 @@ func main() {
 	// // }
 	// log.Println("============ End cn ============")
 	// handleRequests()
-	cryptoPath := "../../test-network/organizations/peerOrganizations/org1.example.com"
+	cryptoPath := "/home/ccd010/go/src/github.com/ankit-gupta-24/fabric-samples/4host-swarm/crypto-config/peerOrganizations/org1.example.com"
 	orgConfig := web.OrgSetup{
 		OrgName:      "Org1",
 		MSPID:        "Org1MSP",
 		CertPath:     cryptoPath + "/users/User1@org1.example.com/msp/signcerts/User1@org1.example.com-cert.pem",
 		KeyPath:      cryptoPath + "/users/User1@org1.example.com/msp/keystore/",
 		TLSCertPath:  cryptoPath + "/peers/peer0.org1.example.com/tls/ca.crt",
-		PeerEndpoint: "localhost:7051",
+		PeerEndpoint: "0.0.0.0:7051",
 		GatewayPeer:  "peer0.org1.example.com",
 	}
 	orgSetup, err := web.Initialize(orgConfig)

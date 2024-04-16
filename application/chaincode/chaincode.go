@@ -419,7 +419,8 @@ It checks if the user already exists and, if not, initializes a new user with th
 func (s *SmartContract) CreateUser(ctx contractapi.TransactionContextInterface, UserId string, username string, email string) error {
 	existingUser, err := s.GetUser(ctx, UserId)
 	if err == nil && existingUser != nil {
-		return fmt.Errorf("User with ID %s already exists", UserId)
+		//return fmt.Errorf("User with ID %s already exists", UserId)
+		return nil
 	}
 	user := User{
 		ID:          UserId,
@@ -606,6 +607,16 @@ func (s *SmartContract) JoinCommunity(ctx contractapi.TransactionContextInterfac
 	existingCommunity.Users = append(existingCommunity.Users, userId)
 	communityJson, _ := json.Marshal(existingCommunity)
 	ctx.GetStub().PutState(communityId, communityJson)
+	currentUser, err := s.GetUser(ctx, userId)
+	if err != nil {
+		return nil, err
+	}
+	if currentUser == nil {
+		return nil, fmt.Errorf("user with ID %s doesn't exists", userId)
+	}
+	currentUser.Communities = append(currentUser.Communities, communityId)
+	userJson, _ := json.Marshal(currentUser)
+	ctx.GetStub().PutState(userId, userJson)
 	user, err := s.GetUserModified(ctx, userId)
 	if err != nil {
 		return nil, err
@@ -628,6 +639,16 @@ func (s *SmartContract) UnJoinCommunity(ctx contractapi.TransactionContextInterf
 	existingCommunity.Users = removeElement(existingCommunity.Users, findIndex(existingCommunity.Users, userId))
 	communityJson, _ := json.Marshal(existingCommunity)
 	ctx.GetStub().PutState(communityId, communityJson)
+	currentUser, err := s.GetUser(ctx, userId)
+	if err != nil {
+		return false, err
+	}
+	if currentUser == nil {
+		return false, fmt.Errorf("user with ID %s doesn't exists", userId)
+	}
+	currentUser.Communities = removeElement(currentUser.Communities, findIndex(currentUser.Communities, communityId))
+	userJson, _ := json.Marshal(currentUser)
+	ctx.GetStub().PutState(userId, userJson)
 	return true, nil
 }
 

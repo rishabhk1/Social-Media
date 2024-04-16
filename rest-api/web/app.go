@@ -68,14 +68,14 @@ func AuthMiddleware(handlerFunc func(http.ResponseWriter, *http.Request)) func(h
 		// Extract the token from the Authorization header
 		tokenString := r.Header.Get("Authorization")
 		if tokenString == "" {
-			http.Error(w, "Authorization header is missing", http.StatusUnauthorized)
+			http.Error(w, "Logout and login again", http.StatusUnauthorized)
 			return
 		}
 
 		// Verify the token
 		_, err := verifyToken(tokenString)
 		if err != nil {
-			http.Error(w, "Invalid token", http.StatusUnauthorized)
+			http.Error(w, "Logout and login again", http.StatusUnauthorized)
 			return
 		}
 
@@ -97,7 +97,7 @@ func Serve(setups OrgSetup) {
 	http.HandleFunc("/user", AuthMiddleware(http.HandlerFunc(setups.GetUser)))
 	http.HandleFunc("/comment", AuthMiddleware(http.HandlerFunc(setups.GetComment)))
 	http.HandleFunc("/create/channel", AuthMiddleware(http.HandlerFunc(setups.Invoke)))
-	http.HandleFunc("/create/user", AuthMiddleware(http.HandlerFunc(setups.CreateUser)))
+	//http.HandleFunc("/create/user", AuthMiddleware(http.HandlerFunc(setups.CreateUser)))
 	http.HandleFunc("/channel/join", AuthMiddleware(http.HandlerFunc(setups.JoinCommunity)))
 	http.HandleFunc("/channel/unjoin", AuthMiddleware(http.HandlerFunc(setups.UnJoinCommunity)))
 	http.HandleFunc("/create/post", AuthMiddleware(http.HandlerFunc(setups.CreatePost)))
